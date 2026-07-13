@@ -1,3 +1,11 @@
-uvicorn
-passlib[bcrypt]
-sqlalchemy
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0 # OTP + auth
+passlib[bcrypt]>=1.7.4 # bcrypt hashing — constant-time verify
+python-jose[cryptography] # JWT signing / verification
+python-dotenv>=1.0.0 # OTP storage — choose one or both
+pydantic-settings>=2.0.0 # typed config from .env 
+sqlalchemy>=2.0.0 # SQLite (persistent)
+cachetools>=5.3.0 # TTLCache (in-memory, single-process)
+slowapi>=0.1.9 # rate limiting (optional, but good practice for auth)
+httpx>=0.27.0 # async HTTP for email providers
+pydantic[email]>=2.0.0 # email validation
