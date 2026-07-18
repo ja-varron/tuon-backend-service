@@ -1,5 +1,6 @@
-# pyrefly: ignore [missing-import]
 from pydantic import BaseModel, EmailStr
+from uuid import UUID
+from datetime import datetime
 
 class SendOTPRequest(BaseModel):
   """
@@ -39,11 +40,29 @@ class TokenResponse(BaseModel):
   token_type: str = "bearer"
 
 
+class UserCreate(BaseModel):
+  email: EmailStr
+  name: str
+
+
+class UserUpdate(BaseModel):
+  name: str | None = None
+  is_active: bool | None = None
+  role: str | None = None
+
+
 class UserResponse(BaseModel):
   """
   Response model for user.
   """
-  user_id: int
+  user_id: UUID
   email: str
-  role: str
+  name: str
+  is_active: bool
+  created_at: datetime
+  updated_at: datetime
+
+  model_config = {
+    "from_attributes": True
+  }
   

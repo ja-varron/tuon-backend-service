@@ -2,14 +2,13 @@
 JWT (JSON Web Token) implementation for authentication.
 """
 
-from src.dependencies import get_current_user
-# pyrefly: ignore [missing-import]
+from ..dependencies import get_current_user
 from fastapi import HTTPException
-from src.auth.router import router
+from .router import router
 from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
-from src.schemas import RefreshRequest
-from src.config import Settings as settings
+from ..schemas import RefreshRequest
+from ..config import settings
 
 def create_access_token(user) -> str:
   """
@@ -31,7 +30,7 @@ def create_access_token(user) -> str:
     "exp": expire
   }
 
-  return jwt.encode(payload, settings.jwt_secret, settings.JWT_ALGORITHM)
+  return jwt.encode(payload, settings.JWT_SECRET, settings.JWT_ALGORITHM)
 
 
 def create_refresh_token(user) -> str:
@@ -46,7 +45,7 @@ def create_refresh_token(user) -> str:
   """
   expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-  return jwt.encode({"sub": user.user_id, "type": "refresh", "exp": expire}, settings.jwt_secret, settings.JWT_ALGORITHM)
+  return jwt.encode({"sub": user.user_id, "type": "refresh", "exp": expire}, settings.JWT_SECRET, settings.JWT_ALGORITHM)
 
 
 def decode_token(token: str) -> dict:
@@ -59,7 +58,7 @@ def decode_token(token: str) -> dict:
   Returns:
       dict: Decoded token data.
   """
-  return jwt.decode(token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM])
+  return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
 
 
 @router.post("/refresh")
