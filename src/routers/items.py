@@ -1,7 +1,6 @@
-from src.auth.router import router
-# pyrefly: ignore [missing-import]
+from ..auth.router import router
 from fastapi import Depends
-from src.dependencies import get_current_user, require_role
+from ..dependencies import get_current_user, require_role
 
 @router.get("/items")
 async def list_items(user=Depends(get_current_user)):

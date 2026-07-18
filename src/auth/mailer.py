@@ -1,16 +1,6 @@
 import smtplib
 from email.message import EmailMessage
-# pyrefly: ignore [missing-import]
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-BREVO_SMTP_SERVER: str = os.getenv("BREVO_SMTP_SERVER")
-BREVO_SMTP_PORT: int = os.getenv("BREVO_SMTP_PORT")
-BREVO_SMTP_USERNAME: str = os.getenv("BREVO_SMTP_USERNAME")
-BREVO_SMTP_PASSWORD: str = os.getenv("BREVO_SMTP_PASSWORD")
-BREVO_SMTP_FROM: str = os.getenv("BREVO_SMTP_FROM")
+from ..config import settings
 
 
 def otp_verification_html_format(email: str, otp_code: str) -> str:
@@ -117,13 +107,13 @@ def send_email(email: str, otp_code: str) -> None:
   try:
     msg = EmailMessage()
     msg['Subject'] = 'Verify your email address'
-    msg['From'] = BREVO_SMTP_FROM
+    msg['From'] = settings.BREVO_SMTP_FROM
     msg['To'] = email
     msg.set_content(otp_verification_html_format(email, otp_code), subtype='html')
 
-    with smtplib.SMTP(BREVO_SMTP_SERVER, BREVO_SMTP_PORT) as server:
+    with smtplib.SMTP(settings.BREVO_SMTP_SERVER, settings.BREVO_SMTP_PORT) as server:
       server.starttls()
-      server.login(BREVO_SMTP_USERNAME, BREVO_SMTP_PASSWORD)
+      server.login(settings.BREVO_SMTP_USERNAME, settings.BREVO_SMTP_PASSWORD)
       server.send_message(msg)
       server.quit()
   except Exception as e:

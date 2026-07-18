@@ -1,20 +1,14 @@
-# pyrefly: ignore [missing-import]
-from src.schemas import SendOTPRequest
-from src.auth.storage import consume_flow
-# pyrefly: ignore [missing-import]
-from src.schemas import VerifyOTPRequest
-from src.config import settings
-# pyrefly: ignore [missing-import]
-from src.auth.storage import count_recent, store_flow, get_flow
-# pyrefly: ignore [missing-import]
 from fastapi import APIRouter, HTTPException, Request
-# pyrefly: ignore [missing-import]
-from slowapi import Limiter
-# pyrefly: ignore [missing-import]
 from slowapi.util import get_remote_address
+from ..schemas import SendOTPRequest
+from ..auth.storage import consume_flow
+from ..schemas import VerifyOTPRequest
+from ..config import settings
+from ..auth.storage import count_recent, store_flow, get_flow
+from slowapi import Limiter
 from datetime import datetime, timedelta
-from src.auth.otp import generate_otp, generate_flow_token, hash_otp
-from src.auth.mailer import send_email
+from ..auth.otp import generate_otp, generate_flow_token, hash_otp
+from ..auth.mailer import send_email
 
 router = APIRouter(prefix="/auth")
 limiter = Limiter(key_func=get_remote_address)

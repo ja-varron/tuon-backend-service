@@ -1,10 +1,7 @@
-# pyrefly: ignore [missing-import]
 from fastapi import Depends, HTTPException
-# pyrefly: ignore [missing-import]
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Callable
-from jose import JWTError 
-from src.auth.jwt import decode_token
+from auth.jwt import decode_token, JWTError
 
 bearer = HTTPBearer()
 
