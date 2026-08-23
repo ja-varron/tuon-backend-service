@@ -14,13 +14,31 @@ create table public.otp_flows (
   otp_flow_id uuid not null default gen_random_uuid (),
   user_id uuid not null default gen_random_uuid (),
   email character varying not null,
+  institution_name character varying not null,
   otp_hash character varying not null,
   attempts smallint not null default '0'::smallint,
+  is_active boolean not null default true,
   expires_at timestamp with time zone not null,
   constraint otp_flows_pkey primary key (otp_flow_id),
   constraint otp_flows_email_key unique (email),
   constraint otp_flows_user_id_fkey foreign KEY (user_id) references users (user_id) on update CASCADE on delete CASCADE
 ) TABLESPACE pg_default;
+
+create table public.refresh_tokens (
+  token_id uuid not null default gen_random_uuid (),
+  user_id uuid not null,
+  token_hash text not null,
+  expires_at timestamp with time zone not null,
+  revoked_at timestamp with time zone null,
+  created_at timestamp with time zone null default now(),
+  constraint refresh_tokens_pkey primary key (token_id),
+  constraint refresh_tokens_token_hash_key unique (token_hash),
+  constraint refresh_tokens_user_id_fkey foreign KEY (user_id) references users (user_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_refresh_tokens_user_id on public.refresh_tokens using btree (user_id) TABLESPACE pg_default;
+
+create index IF not exists idx_refresh_tokens_token_hash on public.refresh_tokens using btree (token_hash) TABLESPACE pg_default;
 
 
 -- Table: public.profiles
