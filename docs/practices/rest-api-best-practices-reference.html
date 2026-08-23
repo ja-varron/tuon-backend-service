@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REST API Best Practices – Quick Reference</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg: #0f1117;
+      --surface: #181c27;
+      --surface2: #1e2333;
+      --border: #2a3045;
+      --accent: #6c8eff;
+      --accent2: #4ecca3;
+      --accent3: #f7c948;
+      --danger: #ff6b6b;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --code-bg: #12161f;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 14px;
+      padding: 32px 24px 64px;
+    }
+
+    .page {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(108, 142, 255, 0.1);
+      border: 1px solid rgba(108, 142, 255, 0.25);
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .sources {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .source-link {
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      border: 1px solid rgba(108,142,255,0.3);
+      padding: 4px 12px;
+      border-radius: 20px;
+      transition: background 0.2s;
+    }
+    .source-link:hover { background: rgba(108,142,255,0.1); }
+
+    /* Quick Ref Bar */
+    .quick-ref {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 36px;
+    }
+    .quick-ref h2 {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 12px;
+    }
+    .quick-ref ul {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 24px;
+    }
+    .quick-ref li {
+      font-size: 13px;
+      color: var(--muted);
+      padding-left: 14px;
+      position: relative;
+    }
+    .quick-ref li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--accent2);
+      font-size: 11px;
+    }
+    .quick-ref li strong { color: var(--text); }
+
+    /* Sections */
+    .sections { display: flex; flex-direction: column; gap: 20px; }
+
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid transparent;
+      transition: background 0.15s;
+    }
+    .section-header:hover { background: var(--surface2); }
+    .section.open .section-header { border-bottom-color: var(--border); }
+
+    .num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(108,142,255,0.12);
+      border: 1px solid rgba(108,142,255,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .section-title { font-size: 15px; font-weight: 600; color: #fff; flex: 1; }
+
+    .chevron {
+      color: var(--muted);
+      font-size: 13px;
+      transition: transform 0.2s;
+    }
+    .section.open .chevron { transform: rotate(180deg); }
+
+    .section-body {
+      padding: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.2s;
+    }
+    .section.open .section-body {
+      max-height: 2000px;
+      padding: 20px;
+    }
+
+    .section-body p {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin-bottom: 14px;
+    }
+
+    .rules { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+
+    .rule {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .rule-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .rule-icon.ok { background: rgba(78,204,163,0.15); color: var(--accent2); border: 1px solid rgba(78,204,163,0.3); }
+    .rule-icon.no { background: rgba(255,107,107,0.12); color: var(--danger); border: 1px solid rgba(255,107,107,0.25); }
+
+    .rule-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+    .rule-text code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+
+    /* Method Table */
+    .method-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 13px; }
+    .method-table th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .method-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(42,48,69,0.5);
+      color: var(--text);
+      vertical-align: top;
+    }
+    .method-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .badge.get    { background: rgba(78,204,163,0.15); color: var(--accent2); border: 1px solid rgba(78,204,163,0.3); }
+    .badge.post   { background: rgba(247,201,72,0.15); color: var(--accent3); border: 1px solid rgba(247,201,72,0.3); }
+    .badge.put    { background: rgba(108,142,255,0.15); color: var(--accent); border: 1px solid rgba(108,142,255,0.3); }
+    .badge.patch  { background: rgba(160,122,255,0.15); color: #a07aff; border: 1px solid rgba(160,122,255,0.3); }
+    .badge.delete { background: rgba(255,107,107,0.12); color: var(--danger); border: 1px solid rgba(255,107,107,0.25); }
+    .badge.yes    { background: rgba(78,204,163,0.1); color: var(--accent2); }
+    .badge.no     { background: rgba(255,107,107,0.1); color: var(--danger); }
+
+    /* Status codes */
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .status-group { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    .status-group h4 { font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .status-group.s2xx h4 { color: var(--accent2); }
+    .status-group.s4xx h4 { color: var(--accent3); }
+    .status-group.s5xx h4 { color: var(--danger); }
+    .status-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+    .status-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .s2xx .status-code { background: rgba(78,204,163,0.15); color: var(--accent2); }
+    .s4xx .status-code { background: rgba(247,201,72,0.15); color: var(--accent3); }
+    .s5xx .status-code { background: rgba(255,107,107,0.12); color: var(--danger); }
+    .status-desc { font-size: 12px; color: var(--muted); }
+
+    /* Code snippet */
+    .snippet {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #a8b8d0;
+      overflow-x: auto;
+      margin-bottom: 14px;
+      white-space: pre;
+    }
+    .snippet .kw { color: var(--accent); }
+    .snippet .val { color: var(--accent2); }
+    .snippet .str { color: var(--accent3); }
+    .snippet .cmt { color: #4a5568; }
+
+    /* Tip box */
+    .tip {
+      display: flex;
+      gap: 10px;
+      background: rgba(108,142,255,0.07);
+      border: 1px solid rgba(108,142,255,0.2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .tip-icon { color: var(--accent); font-size: 15px; flex-shrink: 0; }
+
+    @media (max-width: 600px) {
+      .quick-ref ul { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="tag">Developer Reference</div>
+    <h1>REST API Best Practices</h1>
+    <p class="subtitle">A consolidated checklist for implementing custom API endpoints — drawn from Postman & RESTful API Tutorial.</p>
+    <div class="sources">
+      <a href="https://blog.postman.com/rest-api-best-practices/" target="_blank" class="source-link">↗ Postman Blog</a>
+      <a href="https://restfulapi.net/rest-api-best-practices/" target="_blank" class="source-link">↗ RESTful API Tutorial</a>
+    </div>
+  </header>
+
+  <!-- Quick Reference -->
+  <div class="quick-ref">
+    <h2>Quick Checklist</h2>
+    <ul>
+      <li><strong>Nouns, not verbs</strong> in URLs</li>
+      <li><strong>Correct HTTP methods</strong> for each action</li>
+      <li><strong>Meaningful status codes</strong> always</li>
+      <li><strong>Version your API</strong> from day one</li>
+      <li><strong>HTTPS + auth</strong> — no exceptions</li>
+      <li><strong>Paginate</strong> large collections</li>
+      <li><strong>Standardize error</strong> response shape</li>
+      <li><strong>Design for idempotency</strong></li>
+      <li><strong>Rate limiting</strong> to prevent abuse</li>
+      <li><strong>Stateless</strong> — no server-side session</li>
+      <li><strong>Cache</strong> read-heavy, slow-changing data</li>
+      <li><strong>Document everything</strong> with live examples</li>
+    </ul>
+  </div>
+
+  <div class="sections" id="sections">
+
+    <!-- 1. Resource Naming -->
+    <div class="section open">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">1</div>
+        <div class="section-title">Consistent & Meaningful Resource Naming</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>URLs represent <em>resources</em>. HTTP methods define the action. Keep endpoints noun-based, lowercase, and hierarchically meaningful.</p>
+        <div class="rules">
+          <div class="rule">
+            <div class="rule-icon ok">✓</div>
+            <div class="rule-text">Use nouns: <code>GET /users</code>, <code>POST /orders</code>, <code>DELETE /products/123</code></div>
+          </div>
+          <div class="rule">
+            <div class="rule-icon no">✗</div>
+            <div class="rule-text">Avoid verbs: <code>GET /getUsers</code>, <code>POST /createOrder</code>, <code>DELETE /deleteProduct/123</code></div>
+          </div>
+          <div class="rule">
+            <div class="rule-icon ok">✓</div>
+            <div class="rule-text">Use plural nouns for collections: <code>/users</code>, <code>/orders</code>, <code>/products</code></div>
+          </div>
+          <div class="rule">
+            <div class="rule-icon ok">✓</div>
+            <div class="rule-text">Use lowercase URIs: <code>/categories/technology</code> — some systems are case-sensitive</div>
+          </div>
+          <div class="rule">
+            <div class="rule-icon ok">✓</div>
+            <div class="rule-text">Reflect relationships with nesting (max 2 levels): <code>GET /users/123/orders</code></div>
+          </div>
+          <div class="rule">
+            <div class="rule-icon no">✗</div>
+            <div class="rule-text">Avoid leaking internals: <code>GET /user_table_v2/query?db_id=123</code></div>
+          </div>
+        </div>
+        <div class="tip"><span class="tip-icon">💡</span> More than 2 levels of nesting usually signals a resource modeling problem. Flatten or introduce a dedicated endpoint.</div>
+      </div>
+    </div>
+
+    <!-- 2. HTTP Methods -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">2</div>
+        <div class="section-title">Use HTTP Methods Correctly</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>Each HTTP method carries a well-defined semantic. Misusing them confuses clients and breaks caching.</p>
+        <table class="method-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Use for</th>
+              <th>Idempotent</th>
+              <th>Safe</th>
+              <th>Cacheable</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge get">GET</span></td>
+              <td>Read / retrieve resource</td>
+              <td><span class="badge yes">Yes</span></td>
+              <td><span class="badge yes">Yes</span></td>
+              <td><span class="badge yes">Yes</span></td>
+            </tr>
+            <tr>
+              <td><span class="badge post">POST</span></td>
+              <td>Create new resource</td>
+              <td><span class="badge no">No</span></td>
+              <td><span class="badge no">No</span></td>
+              <td><span class="badge no">No</span></td>
+            </tr>
+            <tr>
+              <td><span class="badge put">PUT</span></td>
+              <td>Full replacement of resource</td>
+              <td><span class="badge yes">Yes</span></td>
+              <td><span class="badge no">No</span></td>
+              <td><span class="badge no">No</span></td>
+            </tr>
+            <tr>
+              <td><span class="badge patch">PATCH</span></td>
+              <td>Partial update of resource</td>
+              <td><span class="badge no">No</span></td>
+              <td><span class="badge no">No</span></td>
+              <td><span class="badge no">No</span></td>
+            </tr>
+            <tr>
+              <td><span class="badge delete">DELETE</span></td>
+              <td>Remove resource</td>
+              <td><span class="badge yes">Yes</span></td>
+              <td><span class="badge no">No</span></td>
+              <td><span class="badge no">No</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rule">
+          <div class="rule-icon no">✗</div>
+          <div class="rule-text">Never use GET for state changes: <code>GET /users/123/delete</code> or <code>GET /cart/add?product_id=789</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. HTTP Status Codes -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">3</div>
+        <div class="section-title">Return Meaningful HTTP Status Codes</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>Status codes tell clients what happened without forcing them to parse the response body. Inconsistent codes are one of the most common sources of client-side bugs.</p>
+        <div class="status-grid">
+          <div class="status-group s2xx">
+            <h4>✓ Success (2xx)</h4>
+            <div class="status-item"><span class="status-code">200</span><span class="status-desc">OK — request succeeded</span></div>
+            <div class="status-item"><span class="status-code">201</span><span class="status-desc">Created — new resource created</span></div>
+            <div class="status-item"><span class="status-code">202</span><span class="status-desc">Accepted — async processing</span></div>
+            <div class="status-item"><span class="status-code">204</span><span class="status-desc">No Content — success, no body</span></div>
+          </div>
+          <div class="status-group s4xx">
+            <h4>⚠ Client Error (4xx)</h4>
+            <div class="status-item"><span class="status-code">400</span><span class="status-desc">Bad Request</span></div>
+            <div class="status-item"><span class="status-code">401</span><span class="status-desc">Unauthorized (auth needed)</span></div>
+            <div class="status-item"><span class="status-code">403</span><span class="status-desc">Forbidden (no permission)</span></div>
+            <div class="status-item"><span class="status-code">404</span><span class="status-desc">Not Found</span></div>
+            <div class="status-item"><span class="status-code">409</span><span class="status-desc">Conflict</span></div>
+            <div class="status-item"><span class="status-code">422</span><span class="status-desc">Unprocessable Entity</span></div>
+            <div class="status-item"><span class="status-code">429</span><span class="status-desc">Too Many Requests</span></div>
+          </div>
+          <div class="status-group s5xx">
+            <h4>✗ Server Error (5xx)</h4>
+            <div class="status-item"><span class="status-code">500</span><span class="status-desc">Internal Server Error</span></div>
+            <div class="status-item"><span class="status-code">502</span><span class="status-desc">Bad Gateway</span></div>
+            <div class="status-item"><span class="status-code">503</span><span class="status-desc">Service Unavailable</span></div>
+            <div class="status-item"><span class="status-code">504</span><span class="status-desc">Gateway Timeout</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Error Responses -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">4</div>
+        <div class="section-title">Standardize Error Responses</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>Status codes tell clients <em>what</em> went wrong. Error bodies explain <em>why</em> and <em>how to fix it</em>. Use a consistent shape across all errors.</p>
+        <div class="snippet"><span class="cmt">// Standard error body</span>
+{
+  <span class="kw">"error"</span>: {
+    <span class="kw">"code"</span>: <span class="str">"VALIDATION_ERROR"</span>,
+    <span class="kw">"message"</span>: <span class="str">"Request validation failed"</span>,
+    <span class="kw">"details"</span>: [
+      { <span class="kw">"field"</span>: <span class="str">"email"</span>, <span class="kw">"message"</span>: <span class="str">"Email is required"</span> },
+      { <span class="kw">"field"</span>: <span class="str">"password"</span>, <span class="kw">"message"</span>: <span class="str">"Min 8 characters"</span> }
+    ]
+  }
+}</div>
+        <div class="rules">
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Return all validation errors at once — saves iterative fix cycles</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Use stable machine-readable <code>code</code> fields + human-readable <code>message</code></div></div>
+          <div class="rule"><div class="rule-icon no">✗</div><div class="rule-text">Don't expose sensitive server internals in error messages</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Versioning -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">5</div>
+        <div class="section-title">Version Your API from Day One</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>APIs evolve. Plan versioning upfront to avoid breaking existing clients. Choose one strategy and stay consistent.</p>
+        <table class="method-table">
+          <thead><tr><th>Strategy</th><th>Example</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>URI Versioning</td>
+              <td><code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--code-bg);border:1px solid var(--border);padding:1px 6px;border-radius:4px;color:var(--accent)">GET /v1/users</code></td>
+              <td style="color:var(--muted)">Explicit, easy to debug. Most common.</td>
+            </tr>
+            <tr>
+              <td>Header Versioning</td>
+              <td><code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--code-bg);border:1px solid var(--border);padding:1px 6px;border-radius:4px;color:var(--accent)">X-API-Version: v1</code></td>
+              <td style="color:var(--muted)">Keeps URLs clean; requires header management.</td>
+            </tr>
+            <tr>
+              <td>Content Negotiation</td>
+              <td><code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--code-bg);border:1px solid var(--border);padding:1px 6px;border-radius:4px;color:var(--accent)">Accept: application/vnd.api.v1+json</code></td>
+              <td style="color:var(--muted)">Standard but less intuitive.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rules">
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Create a new version only for <strong>breaking changes</strong> (removed fields, type changes, auth changes)</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Announce deprecation early; include a <code>Deprecated: true</code> header and sunset date</div></div>
+          <div class="rule"><div class="rule-icon no">✗</div><div class="rule-text">Don't version for non-breaking additions — adding new fields is backward-compatible</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Statelessness -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">6</div>
+        <div class="section-title">Keep the API Stateless</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>Every request must contain all information needed to process it. The server stores no client context between requests — this is foundational to REST and enables infinite horizontal scaling.</p>
+        <div class="rules">
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Include auth credentials and context in every request (e.g., Bearer token in the header)</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Let the client own session state — the server only processes the current request</div></div>
+          <div class="rule"><div class="rule-icon no">✗</div><div class="rule-text">Don't rely on server-side session memory between calls — it breaks horizontal scaling</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. Pagination, Filtering, Sorting -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">7</div>
+        <div class="section-title">Paginate, Filter & Sort Large Collections</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>Never return unbounded datasets. Give clients control over what data they receive and how it's ordered.</p>
+        <div class="snippet"><span class="cmt">// Page-based</span>
+<span class="kw">GET</span> /products?page=3&per_page=20
+
+<span class="cmt">// Cursor-based (best for feeds/high-write)</span>
+<span class="kw">GET</span> /products?limit=20&cursor=eyJpZCI6MTIzfQ
+
+<span class="cmt">// Filtering</span>
+<span class="kw">GET</span> /products?category=electronics&price_min=100&price_max=500
+
+<span class="cmt">// Sorting (- prefix = descending)</span>
+<span class="kw">GET</span> /products?sort=price:asc
+<span class="kw">GET</span> /users?sort=created_at:desc</div>
+        <div class="tip"><span class="tip-icon">💡</span> Cursor-based pagination is more reliable for feeds and high-write datasets. Page-based can skip/duplicate rows if data changes between requests.</div>
+      </div>
+    </div>
+
+    <!-- 8. Security -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">8</div>
+        <div class="section-title">Security is Non-Negotiable</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>Authentication, encryption, and input validation must be built in — not bolted on afterward.</p>
+        <div class="rules">
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text"><strong>Always HTTPS.</strong> No exceptions. Plain HTTP exposes credentials to interception.</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Use <strong>OAuth 2.0 / JWT</strong> for user-specific auth; API Keys for server-to-server</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Apply <strong>rate limiting</strong> — return <code>429 Too Many Requests</code> with retry-after headers</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Implement <strong>RBAC</strong>: grant only the minimum permissions required (principle of least privilege)</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Validate and sanitize all inputs to prevent SQL injection and similar attacks</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Include security headers: <code>Content-Security-Policy</code>, <code>Strict-Transport-Security</code>, <code>X-Content-Type-Options</code></div></div>
+        </div>
+        <div class="snippet"><span class="cmt">// Rate limit response headers</span>
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 847
+X-RateLimit-Reset: 1640995200</div>
+      </div>
+    </div>
+
+    <!-- 9. Idempotency -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">9</div>
+        <div class="section-title">Design for Idempotency</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>Network failures and retries are inevitable. Idempotent operations produce the same result regardless of how many times they're called.</p>
+        <div class="rules">
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">GET, PUT, DELETE are naturally idempotent — repeated calls = same result</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Use <strong>Idempotency-Key</strong> header on POST to prevent duplicate resource creation</div></div>
+        </div>
+        <div class="snippet"><span class="cmt">// POST with idempotency key (e.g., payments)</span>
+<span class="kw">POST</span> /payments
+Idempotency-Key: <span class="str">unique-key-abc123</span>
+Content-Type: application/json
+
+{
+  <span class="kw">"amount"</span>: <span class="val">100.00</span>,
+  <span class="kw">"currency"</span>: <span class="str">"USD"</span>
+}</div>
+      </div>
+    </div>
+
+    <!-- 10. Caching -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">10</div>
+        <div class="section-title">Cache Responses to Optimize Performance</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>Caching reduces latency and server load for data that doesn't change frequently (user profiles, country lists, supported locales, etc.).</p>
+        <div class="snippet"><span class="cmt">// Key caching headers</span>
+Cache-Control: max-age=3600, must-revalidate
+ETag: <span class="str">"34e2-49a7-abc123"</span>
+Last-Modified: Tue, 20 Oct 2023 15:00:00 GMT
+
+<span class="cmt">// Conditional request (client revalidates)</span>
+If-None-Match: <span class="str">"34e2-49a7-abc123"</span>
+<span class="cmt">→ Server returns 304 Not Modified if unchanged</span></div>
+        <div class="tip"><span class="tip-icon">💡</span> Cache-Control is generally preferred over Expires. ETags are ideal for resources that change unpredictably.</div>
+      </div>
+    </div>
+
+    <!-- 11. Observability -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">11</div>
+        <div class="section-title">Observe, Log & Monitor Everything</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>You can't fix what you can't see. Reliable APIs are observable APIs.</p>
+        <div class="rules">
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Log: method, endpoint, status code, latency on every request</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Emit a unique <code>X-Request-ID</code> header in every response for log correlation</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Use structured logging (JSON) so logs are machine-parseable</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Track error rates and slow endpoints; alert on anomalies in real time</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Apply different log levels: INFO, WARN, ERROR</div></div>
+        </div>
+        <div class="snippet">X-Request-ID: f47ac10b-58cc-4372-a567-0e02b2c3d479</div>
+      </div>
+    </div>
+
+    <!-- 12. Documentation -->
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">
+        <div class="num">12</div>
+        <div class="section-title">Comprehensive, Executable Documentation</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="section-body">
+        <p>An API is only as good as its documentation. If developers can't find clear usage guidance, they won't use the API — or they'll use it wrong.</p>
+        <div class="rules">
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Document: method, URL, parameters, request body, response shape, status codes, auth requirements</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Include working request/response examples developers can copy-paste and run</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Document common error scenarios and their recovery paths</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Keep docs in sync with the API — treat examples as part of the contract</div></div>
+          <div class="rule"><div class="rule-icon ok">✓</div><div class="rule-text">Document migration paths when deprecating old endpoints</div></div>
+        </div>
+        <div class="tip"><span class="tip-icon">💡</span> Docs that drift from reality are worse than no docs — clients rely on them and get burned. Treat examples as runnable tests.</div>
+      </div>
+    </div>
+
+  </div><!-- /sections -->
+
+  <div style="margin-top:32px;text-align:center;color:var(--muted);font-size:12px;">
+    Sources: <a href="https://blog.postman.com/rest-api-best-practices/" target="_blank" style="color:var(--accent);text-decoration:none;">Postman Blog</a> &nbsp;·&nbsp; <a href="https://restfulapi.net/rest-api-best-practices/" target="_blank" style="color:var(--accent);text-decoration:none;">RESTful API Tutorial</a>
+  </div>
+</div>
+
+<script>
+  function toggle(header) {
+    const section = header.parentElement;
+    section.classList.toggle('open');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,522 @@
+TUON AUTHENTICATION & AUTHORIZATION IMPLEMENTATION PLAN
+========================================================
+
+UPDATED ACCOUNT MODEL
+---------------------
+
+Tuon has two account-creation paths:
+
+1. ADMIN SELF-REGISTRATION
+
+The public registration page requires:
+    Institution Name
+    Email
+    Password
+
+After successful OTP verification:
+    users.email_created_at = verification timestamp
+    institutions row is created
+    profiles row is created
+    profiles.first_name = submitted Institution Name
+    profiles.role = admin
+    profiles.institution_id = newly created institution
+
+2. INSTRUCTOR/STUDENT PROVISIONING
+
+Instructors and students do NOT publicly self-register. They are created by an authenticated admin.
+
+For both account types:
+    profiles.institution_id = authenticated admin's institution_id
+    profiles.role = determined by admin
+    other profile information = determined by admin
+    users.email_created_at = automatically populated by the system
+
+The public signup flow therefore creates ADMIN accounts only.
+
+1. CORE SECURITY MODEL
+----------------------
+Authentication answers: "Who is this user?"
+Authorization answers: "What is this authenticated user allowed to access or change?"
+
+Use two enforcement layers:
+    FastAPI -> JWT authentication + role/institution/ownership checks
+    PostgreSQL -> Row Level Security (RLS)
+
+2. PRE-IMPLEMENTATION DECISIONS
+-------------------------------
+[ ] Confirm allowed roles: admin, instructor, student.
+[ ] Confirm users.email_created_at semantics for admin verification and admin-created accounts.
+[ ] Confirm the secure mechanism by which FastAPI/JWT identity is supplied to PostgreSQL RLS.
+[ ] Resolve any remaining schema constraints that affect authorization.
+
+3. ADMIN PUBLIC SIGNUP
+----------------------
+Endpoint:
+    POST /api/v1/auth/signup
+
+Request:
+    {"institution_name":"Example University","email":"admin@example.com","password":"..."}
+
+Process:
+    1. Validate input.
+    2. Normalize email.
+    3. Apply signup rate limiting.
+    4. Check existing account.
+    5. Hash password.
+    6. Create users record.
+    7. Generate short-lived OTP.
+    8. Store only OTP hash in otp_flows.
+    9. Send OTP.
+   10. Wait for successful OTP verification before institution/profile completion.
+
+Rules:
+    - Public signup creates ADMIN only.
+    - Server assigns profiles.role = admin.
+    - Client does not submit institution_id.
+    - Server creates institution from institution_name.
+    - Never store plaintext passwords or OTPs.
+
+4. ADMIN OTP VERIFICATION
+-------------------------
+Endpoint:
+    POST /api/v1/auth/otp/verify
+
+Process:
+    1. Find active OTP flow.
+    2. Check expiration.
+    3. Check attempts.
+    4. Verify OTP hash.
+    5. Reject invalid/expired OTP.
+    6. Increment failed attempts.
+    7. On success, invalidate OTP, set users.email_created_at, create institution, and create admin profile.
+
+Institution/profile creation should be one database transaction.
+
+Result:
+    institutions.institution_name = submitted institution name
+    profiles.first_name = submitted institution name
+    profiles.role = admin
+    profiles.institution_id = newly created institution
+
+5. OTP SECURITY
+---------------
+Require:
+    - short expiration
+    - maximum attempts
+    - IP/account rate limiting
+    - resend cooldown/rate limiting
+    - OTP hashing
+    - invalidation after success
+
+Use 429 Too Many Requests when limits are exceeded.
+
+6. SIGN-IN
+----------
+Endpoint:
+    POST /api/v1/auth/signin
+
+The same endpoint is used for admin, instructor, and student accounts.
+
+Process:
+    1. Validate input.
+    2. Normalize email.
+    3. Apply rate limiting.
+    4. Find users record.
+    5. Verify password hash.
+    6. Verify account eligibility.
+    7. Load profile.
+    8. Create short-lived JWT.
+    9. Return token.
+
+Never return passwords, password hashes, OTP hashes, or internal database errors.
+
+7. JWT AUTHENTICATION
+---------------------
+Use:
+    Authorization: Bearer <access-token>
+
+Minimum identity:
+    sub = user_id
+
+Role/institution claims may be convenience information, but the database remains authoritative for current authorization.
+
+8. CURRENT USER
+---------------
+Endpoint:
+    GET /api/v1/auth/me
+
+Obtain the user from the JWT rather than accepting a user_id from the client.
+
+9. ADMIN-CREATED INSTRUCTOR/STUDENT ACCOUNTS
+----------------------------------------------
+Suggested protected endpoints:
+    POST /api/v1/admin/instructors
+    POST /api/v1/admin/students
+
+Only an authenticated admin may create these accounts.
+
+Process:
+    authenticate admin
+        -> load admin profile
+        -> require role = admin
+        -> read admin institution_id
+        -> create users record
+        -> automatically populate email_created_at
+        -> create profile
+             role = admin-selected role
+             institution_id = admin institution_id
+             other information = admin-selected
+
+10. NEVER TRUST CLIENT-SUPPLIED INSTITUTION
+--------------------------------------------
+The client must not choose an arbitrary institution for an admin-created account.
+
+Instead:
+    authenticated admin
+        -> admin.profile.institution_id
+        -> new profile.institution_id
+
+11. ROLE AUTHORIZATION
+----------------------
+Required roles:
+    admin
+    instructor
+    student
+
+Basic model:
+    admin -> manage users in their institution; create instructors/students; determine their profiles
+    instructor -> instructor-permitted resources within institution scope
+    student -> student-permitted resources within institution scope
+
+Define detailed resource permissions only when those resources are implemented.
+
+12. INSTITUTION AUTHORIZATION
+-----------------------------
+The institution is a primary authorization boundary.
+
+Example:
+    Institution A
+        Admin A
+        Instructor A1
+        Student A1
+        Student A2
+
+    Institution B
+        Admin B
+        Instructor B1
+        Student B1
+
+Institution A users must not access Institution B data unless an explicit future authorization rule permits it.
+
+13. RESOURCE OWNERSHIP
+----------------------
+For user-owned resources, verify the authenticated user's identity against the resource owner.
+
+14. FASTAPI AUTHORIZATION DEPENDENCIES
+--------------------------------------
+Build:
+    get_current_user()
+        -> get_current_profile()
+        -> require_role(...)
+        -> require_institution_scope(...)
+        -> require_resource_ownership(...)
+
+15. RLS PRIORITY
+----------------
+Implement incrementally:
+
+Phase 1: profiles
+    Users can access their own profile where permitted.
+
+Phase 2: admin-created accounts
+    Admin can manage accounts belonging to the admin's institution.
+
+Phase 3: course_enrollment
+    Student access limited to own enrollment.
+
+Phase 4: exam_papers
+    Student access limited to own papers.
+
+Phase 5: score_results
+    Student access limited to own results.
+
+Phase 6: feedbacks
+    Student access limited to own feedback.
+
+Phase 7: courses / exams / answer_keys
+    Enforce institution and role-based access through relationships.
+
+Test RLS independently from FastAPI.
+
+16. DEFENSE IN DEPTH
+--------------------
+Protected request:
+    HTTPS
+      -> JWT validation
+      -> current user/profile
+      -> role check
+      -> institution check
+      -> ownership check
+      -> PostgreSQL RLS
+      -> protected resource
+
+17. INITIAL ENDPOINTS
+---------------------
+Public:
+    POST /api/v1/auth/signup
+    POST /api/v1/auth/otp/verify
+    POST /api/v1/auth/otp/resend
+    POST /api/v1/auth/signin
+    GET  /api/v1/auth/me
+
+Protected admin operations:
+    POST /api/v1/admin/instructors
+    POST /api/v1/admin/students
+
+Profile:
+    GET   /api/v1/profiles/me
+    PATCH /api/v1/profiles/me
+
+Do not expose public signup endpoints for instructors or students.
+
+18. HTTP STATUS CODES
+---------------------
+200 OK      successful OTP verification, sign-in, /me
+201 Created newly created account/profile
+400 / 422  invalid request/input
+401        missing or invalid authentication
+403        authenticated but not allowed
+404        requested resource does not exist
+409        account/resource conflict
+429        authentication/OTP rate limit exceeded
+
+Use a consistent error format:
+    {"error":{"code":"ERROR_CODE","message":"Human-readable message","details":[]}}
+
+Never expose SQL errors, stack traces, password details, OTP details, or internal implementation details.
+
+19. RATE LIMITING
+-----------------
+Apply strict limits to:
+    /auth/signup
+    /auth/otp/verify
+    /auth/otp/resend
+    /auth/signin
+
+Also consider limits for admin account provisioning.
+
+20. FASTAPI FOLDER SCOPE
+------------------------
+app/
+├── core/
+│   ├── config.py
+│   ├── security.py
+│   └── database.py
+├── api/
+│   └── v1/
+│       ├── auth/
+│       │   ├── router.py
+│       │   ├── schemas.py
+│       │   └── dependencies.py
+│       ├── admin/
+│       │   ├── router.py
+│       │   └── schemas.py
+│       └── profiles/
+│           ├── router.py
+│           └── schemas.py
+├── services/
+│   ├── auth_service.py
+│   ├── otp_service.py
+│   ├── token_service.py
+│   └── account_provisioning_service.py
+└── tests/
+    └── auth/
+        ├── test_admin_signup.py
+        ├── test_otp.py
+        ├── test_signin.py
+        ├── test_admin_provisioning.py
+        ├── test_me.py
+        └── test_authorization.py
+
+21. IMPLEMENTATION ORDER
+------------------------
+STEP 1  Confirm roles: admin, instructor, student.
+STEP 2  Confirm email_created_at behavior.
+STEP 3  Finalize transaction for successful admin verification: institution + admin profile + email_created_at.
+STEP 4  Implement password hashing and verification.
+STEP 5  Implement OTP generation, hashing, expiration, and attempts.
+STEP 6  Implement ADMIN public signup only.
+STEP 7  Implement admin OTP verification.
+STEP 8  Atomically create institution + admin profile after verification.
+STEP 9  Implement JWT creation/validation.
+STEP 10 Implement sign-in for all account types.
+STEP 11 Implement get_current_user and get_current_profile.
+STEP 12 Implement authenticated admin provisioning of instructor/student.
+STEP 13 Ensure new accounts always inherit admin institution_id.
+STEP 14 Implement role/institution/ownership authorization dependencies.
+STEP 15 Implement RLS for profiles and admin institution scope.
+STEP 16 Add RLS to ownership-based resources.
+STEP 17 Test FastAPI authorization and RLS together.
+
+Stop here before expanding broader application authorization.
+
+22. MINIMUM SECURITY TESTS
+--------------------------
+ADMIN SIGNUP
+    [ ] valid institution/email/password
+    [ ] duplicate email
+    [ ] invalid input
+    [ ] password securely hashed
+    [ ] OTP generated
+    [ ] plaintext OTP never stored
+    [ ] signup rate limit
+
+ADMIN OTP
+    [ ] valid OTP
+    [ ] invalid OTP
+    [ ] expired OTP
+    [ ] maximum attempts
+    [ ] resend cooldown
+    [ ] OTP rate limit
+    [ ] email_created_at populated
+    [ ] institution created
+    [ ] admin profile created
+    [ ] profile.role = admin
+    [ ] profile.first_name = institution name
+    [ ] profile.institution_id = new institution
+    [ ] institution/profile creation is atomic
+
+SIGN-IN
+    [ ] valid admin credentials
+    [ ] valid instructor credentials
+    [ ] valid student credentials
+    [ ] wrong password
+    [ ] unknown email
+    [ ] invalid/unverified account
+    [ ] signin rate limit
+    [ ] JWT expiration
+    [ ] invalid JWT
+
+ADMIN PROVISIONING
+    [ ] admin can create instructor
+    [ ] admin can create student
+    [ ] non-admin cannot create instructor
+    [ ] non-admin cannot create student
+    [ ] new account inherits admin institution_id
+    [ ] client cannot choose another institution_id
+    [ ] admin determines role
+    [ ] profile information saved correctly
+    [ ] email_created_at automatically populated
+
+AUTHORIZATION
+    [ ] unauthenticated request -> 401
+    [ ] wrong role -> 403
+    [ ] wrong institution -> denied
+    [ ] wrong resource owner -> denied
+    [ ] permitted resource -> allowed
+
+RLS
+    [ ] user cannot read another user's profile
+    [ ] admin cannot manage users from another institution
+    [ ] cross-institution account creation is impossible
+    [ ] student cannot read another student's protected data
+    [ ] instructor cannot access unauthorized institution data
+
+23. DEFINITION OF DONE
+----------------------
+Authentication:
+    [ ] only admins can publicly register
+    [ ] admin signup requires institution name, email, password
+    [ ] admin OTP verification works
+    [ ] users.email_created_at is correctly populated
+    [ ] institution is created after successful verification
+    [ ] admin profile is created after successful verification
+    [ ] profile.role is automatically admin
+    [ ] profile.first_name receives institution name
+    [ ] admin can sign in
+    [ ] instructor/student accounts can sign in after admin provisioning
+    [ ] JWT authentication works
+    [ ] /auth/me works
+    [ ] passwords and OTPs are securely handled
+    [ ] rate limits work
+    [ ] standard errors are returned
+    [ ] authentication tests pass
+
+Authorization:
+    [ ] roles explicitly defined
+    [ ] only admins can provision instructor/student accounts
+    [ ] new accounts inherit admin's institution
+    [ ] institution cannot be selected arbitrarily by client
+    [ ] FastAPI role checks work
+    [ ] institution scope enforced
+    [ ] ownership checks work
+    [ ] RLS protects sensitive user-owned data
+    [ ] cross-user access denied
+    [ ] cross-institution access denied
+    [ ] API authorization and RLS tests pass
+
+FINAL SECURITY MODEL
+--------------------
+PUBLIC ADMIN REGISTRATION
+
+    Institution Name + Email + Password
+                 |
+                 v
+             users row
+                 |
+                 v
+             OTP sent
+                 |
+                 v
+          OTP verification
+                 |
+                 +----> users.email_created_at
+                 +----> institutions.institution_name
+                 +----> profiles.first_name = institution name
+                 +----> profiles.role = admin
+                 +----> profiles.institution_id = new institution
+                 |
+                 v
+             ADMIN SIGN-IN
+                 |
+                 v
+                 JWT
+                 |
+                 v
+        ADMIN AUTHORIZATION
+                 |
+          +------+------+
+          |             |
+          v             v
+    Create Instructor  Create Student
+          |             |
+          +------+------+
+                 |
+                 v
+        Same institution_id
+        as authenticated admin
+                 |
+                 v
+          JWT AUTHENTICATION
+                 |
+                 v
+       ROLE + INSTITUTION +
+          OWNERSHIP CHECKS
+                 |
+                 v
+           PostgreSQL RLS
+                 |
+                 v
+        Protected Tuon Data
+
+Implementation goal:
+    Admin Signup
+        -> OTP Verification
+        -> Institution + Admin Profile
+        -> Admin Sign-in
+        -> JWT
+        -> Admin creates Instructor/Student
+        -> Institution-scoped Authorization
+        -> RLS
+
+Only after this chain is secure and tested should broader application authorization be implemented.

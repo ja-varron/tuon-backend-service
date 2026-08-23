@@ -1,0 +1,22 @@
+08/15/2026
+
+- Create a tables in /db/ and run migrations
+
+
+08/16/2026
+What am I done today?
+Implement the tables for authentication and it tests but it fails on ValueError on hash OTP.
+
+What must be done tomorrow?
+Fix the problem regarding with the validation of OTP.
+Implement the admin user management endpoints (create, read, update, delete).
+
+
+08/22/2026
+What am I done today?
+Implement the signin endpoint with the refresh token.
+
+What must be done tomorrow?
+Implement the admin user management endpoints (create, read, update, delete).
+
+
