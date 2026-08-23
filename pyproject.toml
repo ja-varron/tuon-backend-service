@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+# Run pytest from the project root.
+# `src` is added to sys.path so bare imports (e.g. `from core.config import ...`) resolve.
+testpaths = ["tests"]
+pythonpath = ["src"]
