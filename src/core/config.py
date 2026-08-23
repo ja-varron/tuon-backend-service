@@ -1,4 +1,8 @@
-# pyrefly: ignore [missing-import]
+"""
+  This is the config module for the application.
+  It is used to store the configuration of the application.
+"""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -11,7 +15,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    OTP_EXPIRE_MINUTES: int = 10
+    OTP_EXPIRE_MINUTES: int = 5
     OTP_MAX_ATTEMPTS: int = 5
     OTP_RATE_LIMIT_PER_HOUR: int = 15
 
@@ -21,5 +25,8 @@ class Settings(BaseSettings):
     BREVO_SMTP_USERNAME: str
     BREVO_SMTP_PASSWORD: str
     BREVO_SMTP_FROM: str
+
+    # PostgreSQL Database
+    DATABASE_URL: str
 
 settings = Settings()
