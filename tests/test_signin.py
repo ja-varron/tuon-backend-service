@@ -7,15 +7,14 @@ Covered cases:
 - Wrong password → 401
 - Unverified account (email_created_at is None) → 401
 """
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 def _make_user(user_id="user-uuid", email_created_at="2026-01-01T00:00:00Z"):
     user = MagicMock()
     user.user_id = user_id
     user.encrypted_password = "$2b$12$hashedpassword"
-    user.email_created_at = email_created_at
+    user.confirmed_created_at = email_created_at
     return user
 
 
@@ -37,13 +36,14 @@ def test_signin_success(client, mock_db):
     user = _make_user()
     profile = _make_profile()
 
-    with patch("services.auth.login.users.get_user_by_email", return_value=user), \
-         patch("services.auth.login.verify_password", return_value=True), \
-         patch("services.auth.login.profiles.get_profile_by_user_id", return_value=profile), \
-         patch("services.auth.login.create_access_token", return_value="mocked.jwt.token"):
+    with patch("services.auth.login.users.get_user_by_email", new_callable=AsyncMock, return_value=user), \
+            patch("services.auth.login.verify_password_hash", return_value=True), \
+            patch("services.auth.login.profiles.get_profile_by_user_id", new_callable=AsyncMock, return_value=profile), \
+            patch("services.auth.login.tokens_repo.create_refresh_token", new_callable=AsyncMock, return_value="refresh.token"), \
+            patch("services.auth.login.create_access_token", return_value="mocked.jwt.token"):
 
-        response = client.post("/api/v1/auth/signin", json={
-            "email": "admin@testuniversity.edu",
+        response = client.post("/api/v1/auth/signin", data={
+            "username": "admin@testuniversity.edu",
             "password": "SecureP@ss1"
         })
 
@@ -60,10 +60,10 @@ def test_signin_success(client, mock_db):
 
 def test_signin_unknown_email(client, mock_db):
     """An email not in the DB returns 401."""
-    with patch("services.auth.login.users.get_user_by_email", return_value=None):
+    with patch("services.auth.login.users.get_user_by_email", new_callable=AsyncMock, return_value=None):
 
-        response = client.post("/api/v1/auth/signin", json={
-            "email": "ghost@nowhere.com",
+        response = client.post("/api/v1/auth/signin", data={
+            "username": "ghost@nowhere.com",
             "password": "SecureP@ss1"
         })
 
@@ -78,11 +78,11 @@ def test_signin_wrong_password(client, mock_db):
     """A wrong password returns 401."""
     user = _make_user()
 
-    with patch("services.auth.login.users.get_user_by_email", return_value=user), \
-         patch("services.auth.login.verify_password", return_value=False):
+    with patch("services.auth.login.users.get_user_by_email", new_callable=AsyncMock, return_value=user), \
+            patch("services.auth.login.verify_password_hash", return_value=False):
 
-        response = client.post("/api/v1/auth/signin", json={
-            "email": "admin@testuniversity.edu",
+        response = client.post("/api/v1/auth/signin", data={
+            "username": "admin@testuniversity.edu",
             "password": "WrongPassword!"
         })
 
@@ -97,11 +97,11 @@ def test_signin_unverified_account(client, mock_db):
     """A user who hasn't completed OTP verification returns 401."""
     user = _make_user(email_created_at=None)
 
-    with patch("services.auth.login.users.get_user_by_email", return_value=user), \
-         patch("services.auth.login.verify_password", return_value=True):
+    with patch("services.auth.login.users.get_user_by_email", new_callable=AsyncMock, return_value=user), \
+            patch("services.auth.login.verify_password_hash", return_value=True):
 
-        response = client.post("/api/v1/auth/signin", json={
-            "email": "admin@testuniversity.edu",
+        response = client.post("/api/v1/auth/signin", data={
+            "username": "admin@testuniversity.edu",
             "password": "SecureP@ss1"
         })
 

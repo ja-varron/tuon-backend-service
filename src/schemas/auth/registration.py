@@ -9,7 +9,7 @@ class AdminSignupRequest(BaseModel):
     @classmethod
     def password_max_bytes(cls, v: str) -> str:
         """
-        Enforce password length policy (max 72 characters for bcrypt).
+        Enforce the application's maximum password length policy.
         """
         if len(v.encode('utf-8')) > 72:
             raise ValueError("Password exceeds maximum length of 72 bytes.")

@@ -1,9 +1,9 @@
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0 # OTP + auth
-passlib[bcrypt]>=1.7.4 # bcrypt hashing — constant-time verify
+argon2-cffi>=25.1.0 # Argon2 password and OTP hashing
 python-jose[cryptography] # JWT signing / verification
 python-dotenv>=1.0.0 # OTP storage — choose one or both
-pydantic-settings>=2.0.0 # typed config from .env 
+pydantic-settings>=2.0.0 # typed config from .env
 sqlalchemy>=2.0.0 # SQLite (persistent)
 cachetools>=5.3.0 # TTLCache (in-memory, single-process)
 slowapi>=0.1.9 # rate limiting (optional, but good practice for auth)

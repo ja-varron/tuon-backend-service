@@ -7,15 +7,20 @@ Handles the business logic for:
   - Revoking on /signout
 """
 
+from sqlalchemy.ext.asyncio import AsyncSession
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from repositories import users as users_repo, profiles as profiles_repo
-from repositories import tokens as tokens_repo
+from repositories import profiles as profiles_repo
+from repositories import refresh_tokens as tokens_repo
 from core.security import create_access_token
 
+logger = logging.getLogger(__name__)
 
-def issue_refresh_token(db: Session, user_id: str) -> str:
+
+async def issue_refresh_token(db: AsyncSession, user_id: str) -> str:
     """
     Issues a new refresh token for the given user and persists its hash.
 
@@ -26,10 +31,10 @@ def issue_refresh_token(db: Session, user_id: str) -> str:
     Returns:
         str: Raw refresh token to send to the client.
     """
-    return tokens_repo.create_refresh_token(db, user_id)
+    return await tokens_repo.create_refresh_token(db, user_id)
 
 
-def rotate_token(db: Session, raw_refresh_token: str) -> dict:
+async def rotate_token(db: AsyncSession, raw_refresh_token: str, *, client_ctx: dict = None) -> dict:
     """
     Token rotation endpoint logic.
 
@@ -39,6 +44,7 @@ def rotate_token(db: Session, raw_refresh_token: str) -> dict:
     Args:
         db: Database session
         raw_refresh_token: The raw refresh token sent by the client
+        client_ctx: Client metadata (ip_address, user_agent) for audit logging
 
     Returns:
         dict: New access_token and refresh_token
@@ -46,8 +52,14 @@ def rotate_token(db: Session, raw_refresh_token: str) -> dict:
     Raises:
         HTTP 401 if the token is invalid, expired, or already revoked.
     """
-    token_record = tokens_repo.get_valid_refresh_token(db, raw_refresh_token)
+    client_ctx = client_ctx or {}
+
+    token_record = await tokens_repo.get_valid_refresh_token(db, raw_refresh_token)
     if not token_record:
+        logger.warning(
+            "Token rotation failed — invalid/expired token | IP: %s | UA: %s",
+            client_ctx.get("ip_address"), client_ctx.get("user_agent"),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
@@ -57,7 +69,7 @@ def rotate_token(db: Session, raw_refresh_token: str) -> dict:
     user_id = str(token_record["user_id"])
 
     # Fetch role and institution_id for the new access token
-    profile = profiles_repo.get_profile_by_user_id(db, user_id)
+    profile = await profiles_repo.get_profile_by_user_id(db, user_id)
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -65,15 +77,20 @@ def rotate_token(db: Session, raw_refresh_token: str) -> dict:
         )
 
     # Revoke old refresh token (one-time use)
-    tokens_repo.revoke_refresh_token(db, raw_refresh_token)
+    await tokens_repo.revoke_refresh_token(db, raw_refresh_token)
 
     # Issue new tokens
     new_access_token = create_access_token(
         subject=user_id,
-        role=profile.role,
-        institution_id=str(profile.institution_id),
+        role=profile['role'],
+        institution_id=str(profile['institution_id']),
     )
-    new_refresh_token = tokens_repo.create_refresh_token(db, user_id)
+    new_refresh_token = await tokens_repo.create_refresh_token(db, user_id)
+
+    logger.info(
+        "Token rotated: user_id=%s | IP: %s | UA: %s",
+        user_id, client_ctx.get("ip_address"), client_ctx.get("user_agent"),
+    )
 
     return {
         "access_token": new_access_token,
@@ -82,13 +99,14 @@ def rotate_token(db: Session, raw_refresh_token: str) -> dict:
     }
 
 
-def signout(db: Session, raw_refresh_token: str) -> dict:
+async def signout(db: AsyncSession, raw_refresh_token: str, *, client_ctx: dict = None) -> dict:
     """
     Revokes a single refresh token (signs the user out of one device).
 
     Args:
         db: Database session
         raw_refresh_token: The raw refresh token sent by the client
+        client_ctx: Client metadata (ip_address, user_agent) for audit logging
 
     Returns:
         dict: Confirmation message
@@ -96,25 +114,44 @@ def signout(db: Session, raw_refresh_token: str) -> dict:
     Raises:
         HTTP 401 if the token is not found or already revoked.
     """
-    revoked = tokens_repo.revoke_refresh_token(db, raw_refresh_token)
+    client_ctx = client_ctx or {}
+
+    revoked = await tokens_repo.revoke_refresh_token(db, raw_refresh_token)
     if not revoked:
+        logger.warning(
+            "Signout failed — token not found/already revoked | IP: %s | UA: %s",
+            client_ctx.get("ip_address"), client_ctx.get("user_agent"),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token not found or already revoked",
         )
+
+    logger.info(
+        "Signout successful (single device) | IP: %s | UA: %s",
+        client_ctx.get("ip_address"), client_ctx.get("user_agent"),
+    )
     return {"message": "Successfully signed out"}
 
 
-def signout_all(db: Session, user_id: str) -> dict:
+async def signout_all(db: AsyncSession, user_id: str, *, client_ctx: dict = None) -> dict:
     """
     Revokes all refresh tokens for a user (signs out from all devices).
 
     Args:
         db: Database session
         user_id: The user's UUID (from the validated JWT)
+        client_ctx: Client metadata (ip_address, user_agent) for audit logging
 
     Returns:
         dict: Confirmation message
     """
-    tokens_repo.revoke_all_user_tokens(db, user_id)
+    client_ctx = client_ctx or {}
+
+    await tokens_repo.revoke_all_user_tokens(db, user_id)
+
+    logger.info(
+        "Signout all devices: user_id=%s | IP: %s | UA: %s",
+        user_id, client_ctx.get("ip_address"), client_ctx.get("user_agent"),
+    )
     return {"message": "Successfully signed out from all devices"}

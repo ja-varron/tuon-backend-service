@@ -7,9 +7,7 @@ Covered cases:
 - Max attempts reached → 429
 - Wrong OTP → 401
 """
-import pytest
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 def _make_flow(otp_flow_id="flow-uuid", otp_hash="$2b$12$hash", attempts=0, institution_name="Test University"):
@@ -19,6 +17,7 @@ def _make_flow(otp_flow_id="flow-uuid", otp_hash="$2b$12$hash", attempts=0, inst
     flow.otp_hash = otp_hash
     flow.attempts = attempts
     flow.institution_name = institution_name
+    flow.__getitem__.side_effect = {"attempts": attempts}.__getitem__
     return flow
 
 
@@ -37,13 +36,13 @@ def test_otp_verify_success(client, mock_db):
     flow = _make_flow()
     user = _make_user()
 
-    with patch("services.auth.otp.otp_flows.get_active_otp_flow", return_value=flow), \
-         patch("services.auth.otp.verify_password", return_value=True), \
-         patch("services.auth.otp.otp_flows.invalidate_otp_flow"), \
-         patch("services.auth.otp.users.get_user_by_email", return_value=user), \
-         patch("services.auth.otp.users.update_user_verification"), \
-         patch("services.auth.otp.institutions.create_institution", return_value="inst-uuid"), \
-         patch("services.auth.otp.profiles.create_admin_profile"):
+    with patch("services.auth.otp.otp_flows.get_active_otp_flow", new_callable=AsyncMock, return_value=flow), \
+            patch("services.auth.otp.verify_otp_hash", return_value=True), \
+            patch("services.auth.otp.otp_flows.invalidate_otp_flow", new_callable=AsyncMock), \
+            patch("services.auth.otp.users.get_user_by_email", new_callable=AsyncMock, return_value=user), \
+            patch("services.auth.otp.users.update_user_verification", new_callable=AsyncMock), \
+            patch("services.auth.otp.institutions.create_institution", new_callable=AsyncMock, return_value="inst-uuid"), \
+            patch("services.auth.otp.profiles.create_admin_profile", new_callable=AsyncMock):
 
         response = client.post("/api/v1/auth/otp/verify", json={
             "email": "admin@testuniversity.edu",
@@ -60,7 +59,7 @@ def test_otp_verify_success(client, mock_db):
 
 def test_otp_verify_no_active_flow(client, mock_db):
     """When no active OTP exists, return 400."""
-    with patch("services.auth.otp.otp_flows.get_active_otp_flow", return_value=None):
+    with patch("services.auth.otp.otp_flows.get_active_otp_flow", new_callable=AsyncMock, return_value=None):
 
         response = client.post("/api/v1/auth/otp/verify", json={
             "email": "admin@testuniversity.edu",
@@ -79,8 +78,8 @@ def test_otp_verify_max_attempts(client, mock_db):
     from core.config import settings
     flow = _make_flow(attempts=settings.OTP_MAX_ATTEMPTS)
 
-    with patch("services.auth.otp.otp_flows.get_active_otp_flow", return_value=flow), \
-         patch("services.auth.otp.otp_flows.invalidate_otp_flow"):
+    with patch("services.auth.otp.otp_flows.get_active_otp_flow", new_callable=AsyncMock, return_value=flow), \
+            patch("services.auth.otp.otp_flows.invalidate_otp_flow", new_callable=AsyncMock):
 
         response = client.post("/api/v1/auth/otp/verify", json={
             "email": "jhonanthony.a.varron@gmail.com",
@@ -98,9 +97,9 @@ def test_otp_verify_wrong_otp(client, mock_db):
     """An incorrect OTP increments attempts and returns 401."""
     flow = _make_flow()
 
-    with patch("services.auth.otp.otp_flows.get_active_otp_flow", return_value=flow), \
-         patch("services.auth.otp.verify_password", return_value=False), \
-         patch("services.auth.otp.otp_flows.increment_attempts"):
+    with patch("services.auth.otp.otp_flows.get_active_otp_flow", new_callable=AsyncMock, return_value=flow), \
+            patch("services.auth.otp.verify_otp_hash", return_value=False), \
+            patch("services.auth.otp.otp_flows.increment_attempts", new_callable=AsyncMock):
 
         response = client.post("/api/v1/auth/otp/verify", json={
             "email": "jhonanthony.a.varron@gmail.com",

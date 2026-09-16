@@ -1,5 +1,5 @@
-import smtplib
 from email.message import EmailMessage
+import aiosmtplib
 from core.config import settings
 
 
@@ -90,7 +90,7 @@ def otp_verification_html_format(email: str, otp_code: str) -> str:
   """
 
 
-def send_otp_email(email: str, otp_code: str) -> None:
+async def send_otp_email(email: str, otp_code: str) -> None:
   """
   Send an email to the recipient with the given OTP code.
 
@@ -100,20 +100,23 @@ def send_otp_email(email: str, otp_code: str) -> None:
 
   Returns:
     None
-  
+
   Raises:
     Exception: If the email fails to send.
   """
-  try:
-    msg = EmailMessage()
-    msg['Subject'] = 'Verify your email address'
-    msg['From'] = settings.BREVO_SMTP_FROM
-    msg['To'] = email
-    msg.set_content(otp_verification_html_format(email, otp_code), subtype='html')
 
-    with smtplib.SMTP_SSL(settings.BREVO_SMTP_SERVER, settings.BREVO_SMTP_PORT) as server:
-      server.login(settings.BREVO_SMTP_USERNAME, settings.BREVO_SMTP_PASSWORD)
-      server.send_message(msg)
-  
-  except Exception as e:
-    raise Exception(f"Failed to send email: {e}")
+  msg = EmailMessage()
+  msg['Subject'] = 'Verify your email address'
+  msg['From'] = settings.BREVO_SMTP_FROM
+  msg['To'] = email
+  msg.set_content(otp_verification_html_format(email, otp_code), subtype='html')
+
+  await aiosmtplib.send(
+    msg,
+    hostname=settings.BREVO_SMTP_SERVER,
+    port=settings.BREVO_SMTP_PORT,
+    username=settings.BREVO_SMTP_USERNAME,
+    password=settings.BREVO_SMTP_PASSWORD,
+    use_tls=False,
+    start_tls=True,
+  )

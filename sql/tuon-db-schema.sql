@@ -1,16 +1,18 @@
 -- Table: public.users
-create table public.users (
+-- Executed
+create table tuon_auth.users (
   user_id uuid not null default gen_random_uuid (),
-  email character varying not null,
-  encrypted_password character varying not null,
-  email_created_at timestamp with time zone null,
+  email text not null,
+  encrypted_password text not null,
+  confirmed_created_at timestamp with time zone null,
   constraint users_pkey primary key (user_id),
-  constraint user_email_key unique (email)
+  constraint users_email_key unique (email)
 ) TABLESPACE pg_default;
 
 
 -- Table: public.otp_flows
-create table public.otp_flows (
+-- Executed
+create table tuon_auth.otp_flows (
   otp_flow_id uuid not null default gen_random_uuid (),
   user_id uuid not null default gen_random_uuid (),
   email character varying not null,
@@ -20,11 +22,15 @@ create table public.otp_flows (
   is_active boolean not null default true,
   expires_at timestamp with time zone not null,
   constraint otp_flows_pkey primary key (otp_flow_id),
-  constraint otp_flows_email_key unique (email),
-  constraint otp_flows_user_id_fkey foreign KEY (user_id) references users (user_id) on update CASCADE on delete CASCADE
+  constraint otp_flows_user_id_fkey foreign KEY (user_id) references tuon_auth.users (user_id)
 ) TABLESPACE pg_default;
 
-create table public.refresh_tokens (
+create unique INDEX IF not exists otp_flows_one_active_per_user on tuon_auth.otp_flows using btree (user_id) TABLESPACE pg_default
+where is_active;
+
+-- Table: public.refresh_tokens
+-- Executed
+create table tuon_auth.refresh_tokens (
   token_id uuid not null default gen_random_uuid (),
   user_id uuid not null,
   token_hash text not null,
@@ -33,15 +39,15 @@ create table public.refresh_tokens (
   created_at timestamp with time zone null default now(),
   constraint refresh_tokens_pkey primary key (token_id),
   constraint refresh_tokens_token_hash_key unique (token_hash),
-  constraint refresh_tokens_user_id_fkey foreign KEY (user_id) references users (user_id) on delete CASCADE
+  constraint refresh_tokens_user_id_fkey foreign KEY (user_id) references tuon_auth.users (user_id)
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_refresh_tokens_user_id on public.refresh_tokens using btree (user_id) TABLESPACE pg_default;
+create index IF not exists idx_refresh_tokens_user_id on tuon_auth.refresh_tokens using btree (user_id) TABLESPACE pg_default;
 
-create index IF not exists idx_refresh_tokens_token_hash on public.refresh_tokens using btree (token_hash) TABLESPACE pg_default;
-
+create index IF not exists idx_refresh_tokens_token_hash on tuon_auth.refresh_tokens using btree (token_hash) TABLESPACE pg_default;
 
 -- Table: public.profiles
+-- Executed
 create table public.profiles (
   user_id uuid not null,
   email character varying not null,
@@ -55,7 +61,7 @@ create table public.profiles (
   examinee_id_number text not null default 'N/A'::text,
   constraint profiles_pkey primary key (user_id),
   constraint profiles_email_key unique (email),
-  constraint profiles_user_id_fkey foreign KEY (user_id) references users (user_id) on delete CASCADE,
+  constraint profiles_user_id_fkey foreign KEY (user_id) references tuon_auth.users (user_id) on update CASCADE on delete CASCADE,
   constraint profiles_institution_id_fkey foreign KEY (institution_id) references institutions (institution_id) on update RESTRICT on delete RESTRICT,
   constraint profiles_email_check check ((length((email)::text) <= 50)),
   constraint profiles_last_name_check check ((length((last_name)::text) <= 30)),
@@ -64,8 +70,8 @@ create table public.profiles (
   constraint profiles_first_name_check check ((length((first_name)::text) <= 50))
 ) TABLESPACE pg_default;
 
-
 -- Table: public.institutions
+-- Executed
 create table public.institutions (
   institution_id uuid not null default gen_random_uuid (),
   institution_name text not null,
@@ -75,6 +81,7 @@ create table public.institutions (
 
 
 -- Table: public.courses
+-- Executed
 create table public.courses (
   course_id uuid not null default gen_random_uuid (),
   institution_id uuid not null,
@@ -92,6 +99,7 @@ execute FUNCTION set_updated_at ();
 
 
 -- Table: public.course_enrollment
+-- Executed
 create table public.course_enrollment (
   user_id uuid not null,
   course_id uuid not null,
@@ -103,23 +111,26 @@ create table public.course_enrollment (
 
 
 -- Table: public.exams
+-- Executed
 create table public.exams (
   exam_id uuid not null default gen_random_uuid (),
   course_id uuid not null,
   exam_title text not null,
   exam_date timestamp with time zone null,
   passing_rate numeric null,
-  created_by uuid not null,
   created_at timestamp with time zone not null default now(),
   topics character varying[] null,
   total_items numeric not null,
   constraint exam_pkey primary key (exam_id),
-  constraint exam_course_id_fkey foreign KEY (course_id) references courses (course_id) on delete CASCADE,
-  constraint exam_created_by_fkey foreign KEY (created_by) references profiles (user_id) on delete set null
+  constraint exam_course_id_fkey foreign KEY (course_id) references courses (course_id) on delete CASCADE
 ) TABLESPACE pg_default;
 
 
 -- Table: public.exam_papers
+-- Executed
+
+-- INSERT PROCEDURE:
+-- Get the student ID using the examinee ID number first before inserting into this table
 create table public.exam_papers (
   paper_id uuid not null default gen_random_uuid (),
   exam_id uuid not null,
@@ -146,6 +157,10 @@ create table public.answer_keys (
 
 
 -- Table: public.score_results
+-- Executed
+
+-- INSERT PROCEDURE:
+-- Get the student ID using the examinee ID number first before inserting into this table
 create table public.score_results (
   exam_id uuid not null,
   student_id uuid not null,
@@ -159,6 +174,7 @@ create table public.score_results (
 
 
 -- Table: public.feedbacks
+-- Executed
 create table public.feedbacks (
   feedback_id uuid not null default gen_random_uuid (),
   exam_id uuid not null,

@@ -1,26 +1,24 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import insert
-from db.connection import metadata
+from sqlalchemy.sql.expression import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-institutions_table = metadata.tables['institutions']
+INSTITUTIONS_TABLE = 'public.institutions'
 
-def create_institution(db: Session, institution_name: str, user_id: str):
+async def create_institution(db: AsyncSession, institution_name: str):
     """
     Creates a new institution.
-    
+
     Args:
         db: Database session
         institution_name: Institution name
-        
     Returns:
         str: Institution ID
     """
-    stmt = insert(institutions_table).values(
-        institution_name=institution_name,
-        created_by=user_id
-    ).returning(institutions_table.c.institution_id)
-    
-    # Executes the statement and returns the institution ID
-    result = db.execute(stmt).scalar_one()
-    
-    return result
+
+    sql_statement = text(f"""
+        INSERT INTO {INSTITUTIONS_TABLE} (institution_name)
+        VALUES (:institution_name)
+        RETURNING institution_id
+    """)
+
+    result = await db.execute(sql_statement, {'institution_name': institution_name})
+    return result.scalar_one()

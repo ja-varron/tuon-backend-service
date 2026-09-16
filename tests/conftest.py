@@ -5,7 +5,7 @@ Strategy: override the FastAPI `get_db` dependency with a mock session
 so tests never touch a real database.
 """
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 
 from main import app
@@ -20,7 +20,11 @@ def get_mock_db():
 @pytest.fixture
 def mock_db():
     """Pytest fixture that yields a fresh MagicMock session."""
-    return MagicMock()
+    db = MagicMock()
+    db.execute = AsyncMock()
+    db.commit = AsyncMock()
+    db.rollback = AsyncMock()
+    return db
 
 
 @pytest.fixture

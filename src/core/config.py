@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     """
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
-    jwt_secret: str
+    JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -27,6 +27,6 @@ class Settings(BaseSettings):
     BREVO_SMTP_FROM: str
 
     # PostgreSQL Database
-    DATABASE_URL: str
+    SUPABASE_DATABASE_URL: str
 
 settings = Settings()

@@ -6,7 +6,7 @@ Covered cases:
 - Duplicate email → 409
 - Missing required fields → 422
 """
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 
 # ---------------------------------------------------------------------------
@@ -15,10 +15,10 @@ from unittest.mock import patch, MagicMock
 
 def test_signup_success(client, mock_db):
     """Valid payload creates a user and triggers OTP send."""
-    with patch("services.auth.registration.users.get_user_by_email", return_value=None), \
-         patch("services.auth.registration.users.create_user", return_value="user-uuid-123"), \
-         patch("services.auth.registration.generate_otp", return_value="123456"), \
-         patch("services.auth.registration.email.send_otp_email"):
+    with patch("services.auth.registration.users.get_user_by_email", new_callable=AsyncMock, return_value=None), \
+            patch("services.auth.registration.users.create_user", new_callable=AsyncMock, return_value="user-uuid-123"), \
+            patch("services.auth.registration.generate_otp", new_callable=AsyncMock, return_value="123456"), \
+            patch("services.auth.registration.message.send_otp_email", new_callable=AsyncMock):
 
         response = client.post("/api/v1/auth/signup", json={
             "institution_name": "Test University",
@@ -38,10 +38,9 @@ def test_signup_success(client, mock_db):
 
 def test_signup_duplicate_email(client, mock_db):
     """Registering with an already-used email returns 409."""
-    existing_user = MagicMock()
-    existing_user.email = "admin@testuniversity.edu"
+    existing_user = {"confirmed_created_at": "2026-01-01T00:00:00Z"}
 
-    with patch("services.auth.registration.users.get_user_by_email", return_value=existing_user):
+    with patch("services.auth.registration.users.get_user_by_email", new_callable=AsyncMock, return_value=existing_user):
 
         response = client.post("/api/v1/auth/signup", json={
             "institution_name": "Test University",

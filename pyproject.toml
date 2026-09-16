@@ -1,5 +1,15 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"  # works on any setuptools version
+
+[project]
+name = "tuon"
+version = "0.1.0"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.pytest.ini_options]
-# Run pytest from the project root.
-# `src` is added to sys.path so bare imports (e.g. `from core.config import ...`) resolve.
 testpaths = ["tests"]
 pythonpath = ["src"]
+anyio_mode = "auto"
