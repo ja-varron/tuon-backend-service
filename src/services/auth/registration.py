@@ -2,7 +2,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 from schemas.auth.registration import AdminSignupRequest
 from repositories import users, otp_flows
 from services.auth.otp import generate_otp
