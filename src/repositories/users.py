@@ -1,3 +1,5 @@
+from datetime import timezone
+from datetime import datetime
 from sqlalchemy.sql.expression import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -82,5 +84,21 @@ async def update_user_password(db: AsyncSession, email: str, hashed_password: st
 
     result = await db.execute(sql_statement, {'hashed_password': hashed_password, 'email': email})
     await db.commit()
+
+    return result.mappings().first()['user_id']
+
+
+async def create_user_from_admin(db: AsyncSession, email: str, hashed_password: str):
+    sql_statement = text(f"""
+        INSERT INTO {USERS_TABLE}
+        (email, encrypted_password, confirmed_created_at)
+        VALUES (:email, :hashed_password, now())
+        RETURNING user_id
+    """)
+
+    result = await db.execute(
+        sql_statement, 
+        {'email': email, 'hashed_password': hashed_password, 'confirmed_created_at': datetime.now(timezone.utc)}
+    )
 
     return result.mappings().first()['user_id']
