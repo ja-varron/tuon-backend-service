@@ -1,122 +1,232 @@
 from email.message import EmailMessage
 import aiosmtplib
+from html import escape
 from core.config import settings
 
 
 def otp_verification_html_format(email: str, otp_code: str) -> str:
-  """
-  Generates the HTML format for the email.
+    """
+    Generates the HTML format for the email.
 
-  Args:
-      email (str): Email address of the recipient.
-      otp_code (str): OTP code to be sent to the recipient.
+    Args:
+        email (str): Email address of the recipient.
+        otp_code (str): OTP code to be sent to the recipient.
 
-  Returns:
-      str: HTML format for the email.
-  """
+    Returns:
+        str: HTML format for the email.
+    """
 
-  return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f6f6; padding:40px 0;">
-    <tr>
-      <td align="center">
+    return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f6f6; padding:40px 0;">
+		<tr>
+			<td align="center">
 
-        <table role="presentation" width="480" cellpadding="0" cellspacing="0"
-          style="background-color:#ffffff; border:1px solid #e0e0e0; border-radius:8px; padding:40px;">
+				<table role="presentation" width="480" cellpadding="0" cellspacing="0"
+					style="background-color:#ffffff; border:1px solid #e0e0e0; border-radius:8px; padding:40px;">
 
-          <!-- Logo / Brand -->
-          <tr>
-            <td align="center" style="padding-bottom:24px;">
-              <span style="font-size:28px; font-weight:bold; color:#2DC653;">Tuon</span>
+					<!-- Logo / Brand -->
+					<tr>
+					<td align="center" style="padding-bottom:24px;">
+						<span style="font-size:28px; font-weight:bold; color:#2DC653;">Tuon</span>
+					</td>
+					</tr>
+
+					<!-- Heading -->
+					<tr>
+					<td align="center" style="padding-bottom:24px;">
+						<h1 style="font-size:24px; font-weight:400; color:#202124; margin:0;">
+						Verify your email
+						</h1>
+					</td>
+					</tr>
+
+					<!-- Divider -->
+					<tr>
+					<td style="border-top:1px solid #e8e8e8; padding-bottom:24px;"></td>
+					</tr>
+
+					<!-- Body text -->
+					<tr>
+					<td style="font-size:14px; line-height:22px; padding-bottom:20px;">
+						Use this code to verify <strong style="color:#2DC653">{email}</strong> and finish signing in to <strong>Tuon</strong>:
+					</td>
+					</tr>
+
+					<!-- OTP Code -->
+					<tr>
+					<td align="center" style="padding:16px 0 24px 0;">
+						<span style="font-size:36px; letter-spacing:8px; font-weight:600; color:#202124;">
+						{otp_code}
+						</span>
+					</td>
+					</tr>
+
+					<!-- Expiry note -->
+					<tr>
+					<td style="font-size:13px; color:#5f6368; padding-bottom:24px;">
+						This code will expire in 5 minutes.
+					</td>
+					</tr>
+
+					<!-- Footer note -->
+					<tr>
+					<td style="border-top:1px solid #e8e8e8; padding-top:20px; font-size:12px; color:#80868b; line-height:18px;">
+						If you didn't request this code, you can safely ignore this email — no changes will be made to your account.
+					</td>
+					</tr>
+
+				</table>
+
+				<!-- Outer footer -->
+				<table role="presentation" width="480" cellpadding="0" cellspacing="0">
+					<tr>
+					<td align="center" style="padding-top:20px; font-size:12px; color:#9aa0a6;">
+						© 2026 Tuon Dev Team. · This is an automated message, please do not reply.
+					</td>
+					</tr>
+				</table>
+
+			</td>
+		</tr>
+	</table>
+    """
+
+
+
+
+def account_creation_html_format(
+    email: str,
+    password: str,
+    role: str,
+) -> str:
+    return f"""
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+           style="background:#f6f6f6;padding:40px 0;font-family:Arial,sans-serif;">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0"
+                       style="background:#fff;border:1px solid #e0e0e0;
+                              border-radius:8px;padding:40px;">
+                    <tr>
+                        <td align="center" style="padding-bottom:24px;">
+                            <span style="font-size:28px;font-weight:bold;color:#2DC653;">
+                                Tuon
+                            </span>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td align="center" style="padding-bottom:24px;">
+                            <h1 style="font-size:24px;font-weight:400;color:#202124;margin:0;">
+                                Your Tuon account is ready
+                            </h1>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="border-top:1px solid #e8e8e8;padding-bottom:24px;"></td>
+                    </tr>
+
+                    <tr>
+                        <td style="font-size:14px;line-height:22px;padding-bottom:20px;">
+                            Your <strong>{escape(role)}</strong> account has been created.
+                            Use the credentials below to sign in:
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="font-size:14px;line-height:26px;padding-bottom:20px;">
+                            <strong>Email:</strong> {escape(email)}<br>
+                            <strong>Password:</strong> {escape(password)}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="font-size:13px;color:#b3261e;padding-bottom:24px;">
+                            For your security, please change this password after signing in.
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="border-top:1px solid #e8e8e8;padding-top:20px;
+                                   font-size:12px;color:#80868b;line-height:18px;">
+                            If you did not expect this account, please contact your institution
+                            administrator.
+                        </td>
+                    </tr>
+                </table>
+
+                <table width="480" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td align="center" style="padding-top:20px;font-size:12px;color:#9aa0a6;">
+                            © 2026 Tuon Dev Team. This is an automated message.
+                        </td>
+                    </tr>
+                </table>
             </td>
-          </tr>
+        </tr>
+    </table>
+    """
 
-          <!-- Heading -->
-          <tr>
-            <td align="center" style="padding-bottom:24px;">
-              <h1 style="font-size:24px; font-weight:400; color:#202124; margin:0;">
-                Verify your email
-              </h1>
-            </td>
-          </tr>
 
-          <!-- Divider -->
-          <tr>
-            <td style="border-top:1px solid #e8e8e8; padding-bottom:24px;"></td>
-          </tr>
+async def send_account_creation_email(
+    email: str,
+    password: str,
+    role: str,
+) -> None:
+    msg = EmailMessage()
+    msg["Subject"] = "Your Tuon account credentials"
+    msg["From"] = settings.BREVO_SMTP_FROM
+    msg["To"] = email
 
-          <!-- Body text -->
-          <tr>
-            <td style="font-size:14px; line-height:22px; padding-bottom:20px;">
-              Use this code to verify <strong style="color:#2DC653">{email}</strong> and finish signing in to <strong>Tuon</strong>:
-            </td>
-          </tr>
+    msg.set_content(
+        f"Your Tuon {role} account was created.\n\n"
+        f"Email: {email}\n"
+        f"Password: {password}\n\n"
+        "Please change your password after signing in."
+    )
+    msg.add_alternative(
+        account_creation_html_format(email, password, role),
+        subtype="html",
+    )
 
-          <!-- OTP Code -->
-          <tr>
-            <td align="center" style="padding:16px 0 24px 0;">
-              <span style="font-size:36px; letter-spacing:8px; font-weight:600; color:#202124;">
-                {otp_code}
-              </span>
-            </td>
-          </tr>
-
-          <!-- Expiry note -->
-          <tr>
-            <td style="font-size:13px; color:#5f6368; padding-bottom:24px;">
-              This code will expire in 5 minutes.
-            </td>
-          </tr>
-
-          <!-- Footer note -->
-          <tr>
-            <td style="border-top:1px solid #e8e8e8; padding-top:20px; font-size:12px; color:#80868b; line-height:18px;">
-              If you didn't request this code, you can safely ignore this email — no changes will be made to your account.
-            </td>
-          </tr>
-
-        </table>
-
-        <!-- Outer footer -->
-        <table role="presentation" width="480" cellpadding="0" cellspacing="0">
-          <tr>
-            <td align="center" style="padding-top:20px; font-size:12px; color:#9aa0a6;">
-              © 2026 Tuon Dev Team. · This is an automated message, please do not reply.
-            </td>
-          </tr>
-        </table>
-
-      </td>
-    </tr>
-  </table>
-  """
+    await aiosmtplib.send(
+        msg,
+        hostname=settings.BREVO_SMTP_SERVER,
+        port=settings.BREVO_SMTP_PORT,
+        username=settings.BREVO_SMTP_USERNAME,
+        password=settings.BREVO_SMTP_PASSWORD,
+        use_tls=False,
+        start_tls=True,
+    )
 
 
 async def send_otp_email(email: str, otp_code: str) -> None:
-  """
-  Send an email to the recipient with the given OTP code.
+    """
+    Send an email to the recipient with the given OTP code.
 
-  Args:
-    email (str): Email address of the recipient.
-    otp_code (str): OTP code to be sent to the recipient.
+    Args:
+        email (str): Email address of the recipient.
+        otp_code (str): OTP code to be sent to the recipient.
 
-  Returns:
-    None
+    Returns:
+        None
 
-  Raises:
-    Exception: If the email fails to send.
-  """
+    Raises:
+        Exception: If the email fails to send.
+    """
 
-  msg = EmailMessage()
-  msg['Subject'] = 'Verify your email address'
-  msg['From'] = settings.BREVO_SMTP_FROM
-  msg['To'] = email
-  msg.set_content(otp_verification_html_format(email, otp_code), subtype='html')
+    msg = EmailMessage()
+    msg['Subject'] = 'Verify your email address'
+    msg['From'] = settings.BREVO_SMTP_FROM
+    msg['To'] = email
+    msg.set_content(otp_verification_html_format(email, otp_code), subtype='html')
 
-  await aiosmtplib.send(
-    msg,
-    hostname=settings.BREVO_SMTP_SERVER,
-    port=settings.BREVO_SMTP_PORT,
-    username=settings.BREVO_SMTP_USERNAME,
-    password=settings.BREVO_SMTP_PASSWORD,
-    use_tls=False,
-    start_tls=True,
-  )
+    await aiosmtplib.send(
+        msg,
+        hostname=settings.BREVO_SMTP_SERVER,
+        port=settings.BREVO_SMTP_PORT,
+        username=settings.BREVO_SMTP_USERNAME,
+        password=settings.BREVO_SMTP_PASSWORD,
+        use_tls=False,
+        start_tls=True,
+    )
