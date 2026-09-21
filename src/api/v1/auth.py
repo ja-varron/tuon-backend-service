@@ -1,8 +1,8 @@
+from db.connection import get_public_db
+from db.connection import get_auth_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from db.connection import get_db
 
 from schemas.auth.registration import AdminSignupRequest, AdminSignupResponse
 from schemas.auth.otp import OTPVerifyRequest
@@ -32,7 +32,7 @@ def _client_context(request: Request) -> dict:
 
 @router.post("/signup", response_model=AdminSignupResponse)
 @limiter.limit("5/minute")
-async def signup_admin(request: Request, signup_data: AdminSignupRequest, db: AsyncSession = Depends(get_db)):
+async def signup_admin(request: Request, signup_data: AdminSignupRequest, db: AsyncSession = Depends(get_auth_db)):
     """
     Public signup endpoint. Only creates ADMIN accounts.
     Generates an OTP and waits for verification.
@@ -43,7 +43,7 @@ async def signup_admin(request: Request, signup_data: AdminSignupRequest, db: As
 
 @router.post("/otp/verify")
 @limiter.limit("5/minute")
-async def verify_otp(request: Request, verify_data: OTPVerifyRequest, db: AsyncSession = Depends(get_db)):
+async def verify_otp(request: Request, verify_data: OTPVerifyRequest, db: AsyncSession = Depends(get_auth_db)):
     """
     Verifies the OTP and finalizes the account creation (institution + profile).
     """
@@ -53,7 +53,7 @@ async def verify_otp(request: Request, verify_data: OTPVerifyRequest, db: AsyncS
 
 @router.post("/signin", response_model=SigninResponse)
 @limiter.limit("10/minute")
-async def signin(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def signin(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_auth_db)):
     """
     Authenticates the user and returns a JWT access token + refresh token.
     Works for verified admin accounts.
@@ -69,7 +69,7 @@ async def signin(request: Request, form_data: OAuth2PasswordRequestForm = Depend
 
 @router.post("/token/refresh", response_model=RefreshTokenResponse)
 @limiter.limit("20/minute")
-async def refresh_token(request: Request, payload: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
+async def refresh_token(request: Request, payload: RefreshTokenRequest, db: AsyncSession = Depends(get_auth_db)):
     """
     Issues a new access token using a valid refresh token.
     The old refresh token is immediately revoked (token rotation).
@@ -85,7 +85,7 @@ async def refresh_token(request: Request, payload: RefreshTokenRequest, db: Asyn
 async def signout(
     request: Request,
     payload: RefreshTokenRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_auth_db),
 ):
     """
     Revokes the provided refresh token (signs out of one device).
@@ -98,7 +98,7 @@ async def signout(
 @limiter.limit("5/minute")
 async def signout_all(
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_public_db),
     current_user: TokenPayload = Depends(get_current_user),
 ):
     """

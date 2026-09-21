@@ -29,5 +29,6 @@ class Settings(BaseSettings):
 
     # PostgreSQL Database
     SUPABASE_DATABASE_URL: str
+    SUPABASE_AUTH_URL: str
 
 settings = Settings()
