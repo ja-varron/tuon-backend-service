@@ -1,3 +1,4 @@
+from api.v1.public import courses
 from fastapi import APIRouter
 from api.v1 import admin_users
 from api.v1 import auth
@@ -7,3 +8,4 @@ api_v1_router = APIRouter(prefix="/api/v1")
 
 api_v1_router.include_router(auth.router)
 api_v1_router.include_router(admin_users.router)
+api_v1_router.include_router(courses.router)
